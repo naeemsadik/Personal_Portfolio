@@ -72,31 +72,44 @@ name: nas-portfolio-backend
 #   - The .env.coolify.example file in the repo root lists every
 #     variable above, blank, ready to copy into Coolify.
 #
-# About db/docker-entrypoint.sh:
-#   The `db` service wraps the official mysql:8.0 entrypoint so we
-#   can interpolate ${MYSQL_PASSWORD} into init.sql via envsubst
-#   before MySQL reads it. SQL files in /docker-entrypoint-initdb.d/
-#   are passed straight to the mysql client (no shell expansion), so
-#   the wrapper is necessary. Mounted at
-#     /usr/local/bin/custom-entrypoint.sh
-#   and used as the entrypoint. See db/docker-entrypoint.sh for the
-#   script body.
-#
-#   IMPORTANT: init.sql is mounted WITHOUT `:ro` so the wrapper can
-#   rewrite it in place after envsubst. The wrapper itself is mounted
-#   `:ro` because it never needs to be modified at runtime.
+# About db/docker-entrypoint.sh + db/Dockerfile:
+#   The `db` service builds a CUSTOM image (FROM mysql:8.0) that
+#   bakes in:
+#     - db/docker-entrypoint.sh → /usr/local/bin/custom-entrypoint.sh
+#       as the entrypoint. Wraps the official mysql entrypoint so
+#       we can interpolate ${MYSQL_PASSWORD} into init.sql via
+#       envsubst before MySQL reads it. SQL files in
+#       /docker-entrypoint-initdb.d/ are passed straight to the
+#       mysql client (no shell expansion), so the wrapper is
+#       necessary.
+#     - db/init.sql → /docker-entrypoint-initdb.d/init.sql
+#       which the wrapper envsubs into the actual init script on
+#       first boot.
+#   We previously tried bind-mounting these from the host filesystem,
+#   but the bind-mount under /usr/local/bin/ triggered an
+#   "is a directory: permission denied" runc error during deploy
+#   because the source file wasn't materialized at Coolify's deploy
+#   path. Baking files into the image layers avoids that class of
+#   bug entirely.
 
 services:
   db:
-    image: 'mysql:8.0'
+    # Build a custom image FROM mysql:8.0 that bakes in our wrapper
+    # entrypoint and init.sql. We previously tried bind-mounting
+    # these in from the host, but Coolify's git clone occasionally
+    # failed to materialize the wrapper file at the deploy path,
+    # causing runc to exec an empty directory (EISDIR) and the
+    # container to fail to start with "is a directory: permission
+    # denied". Baking the files into the image layers sidesteps
+    # the bind-mount path entirely.
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    image: nas-portfolio/db:local
     container_name: nas-portfolio-db
     restart: unless-stopped
     volumes:
       - 'mysql_data:/var/lib/mysql'
-      - './db/init.sql:/docker-entrypoint-initdb.d/init.sql'
-      - './db/docker-entrypoint.sh:/usr/local/bin/custom-entrypoint.sh:ro'
-    entrypoint:
-      - /usr/local/bin/custom-entrypoint.sh
     command:
       - mysqld
     environment:

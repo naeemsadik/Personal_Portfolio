@@ -16,12 +16,15 @@
 #   - The official entrypoint only runs /docker-entrypoint-initdb.d/
 #     files ONCE — when /var/lib/mysql is empty.
 #
-# Mounted in docker-compose.yml at:
-#   ./db/docker-entrypoint.sh:/usr/local/bin/custom-entrypoint.sh:ro
-# and used as the `entrypoint:` of the db service.
-#
-# Companion mount (NOT :ro, so we can rewrite init.sql in place):
-#   ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+# How this wrapper gets into the container:
+#   It's baked into a custom image by db/Dockerfile, copied to
+#   /usr/local/bin/custom-entrypoint.sh and set as ENTRYPOINT.
+#   The companion file init.sql is also baked in at
+#   /docker-entrypoint-initdb.d/init.sql. This avoids the bind-mount
+#   approach that hit a "is a directory" runc error in earlier
+#   deploys — baking files into the image makes them part of the
+#   immutable filesystem layers, so the entrypoint exec path always
+#   resolves to a real file.
 
 set -e
 
@@ -49,6 +52,5 @@ fi
 
 # Step 2: hand off to the official entrypoint. The mysql:8.0 image
 # places its entrypoint at /usr/local/bin/docker-entrypoint.sh and
-# exec's whatever we pass as $@ (typically `mysqld` from compose's
-# `command:` field).
+# exec's whatever we pass as $@ (typically `mysqld` from CMD).
 exec /usr/local/bin/docker-entrypoint.sh "$@"
