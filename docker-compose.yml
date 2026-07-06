@@ -6,12 +6,13 @@ name: nas-portfolio-backend
 # elsewhere (e.g. Vercel). The two services communicate over HTTPS.
 #
 # Services:
-#   - backend  (FastAPI + uvicorn, port 8000)
+#   - backend  (FastAPI + uvicorn, listens on container port 8080)
 #   - db       (MySQL 8, internal only — not exposed to the host)
 #
 # Persistent data:
-#   - mysql_data  : MySQL datadir (survives restarts + redeploys)
-#   - uploads_data: backend file uploads served at /media/*
+#   - mysql_data     : MySQL datadir (survives restarts + redeploys)
+#   - uploads_data   : backend file uploads served at /media/*
+#   - snapshots_data : generated static snapshots (admin-only feature)
 #
 # How to deploy on Coolify:
 #   1. Push the repo to GitHub/GitLab.
@@ -28,16 +29,12 @@ name: nas-portfolio-backend
 #        MYSQL_PASSWORD           (strong random, ≥24 chars)
 #
 #        # --- Backend ---
-#        # The DATABASE_URL below references the in-compose `db` service.
-#        # Coolify fills MYSQL_PASSWORD for you via ${MYSQL_PASSWORD}.
-#        DATABASE_URL             = mysql+pymysql://portfolio:${MYSQL_PASSWORD}@db:3306/portfolio
 #        JWT_SECRET               (secrets.token_urlsafe(48))
 #        JWT_EXPIRE_MIN           = 60
 #        ADMIN_BOOTSTRAP_EMAIL    = [email protected]
 #        ADMIN_BOOTSTRAP_PASSWORD (strong random — change after first login)
 #
 #        # --- Frontend wiring ---
-#        # The public URL of your deployed Next.js site (Vercel etc).
 #        CORS_ORIGINS             = https://your-frontend-host
 #        PUBLIC_API_URL           = https://api.your-backend-host
 #        NEXT_PUBLIC_SITE_URL     = https://your-frontend-host
@@ -50,10 +47,12 @@ name: nas-portfolio-backend
 #        RESEND_API_KEY           (optional)
 #        CONTACT_NOTIFY_TO        (optional)
 #
-#   4. Expose port 8000 in Coolify. Either let Coolify's Traefik handle
-#      TLS (recommended: set a domain like api.your-domain.tld in the
-#      "Domains" section of the resource), or use the in-compose
-#      `ports:` mapping (currently bound to 127.0.0.1:8000).
+#   4. Expose the container's port 8080 in Coolify's "Port Mappings" UI.
+#      IMPORTANT: pick a HOST port that does NOT collide with Coolify
+#      itself — Coolify's web UI listens on port 8000 by default, so use
+#          8001:8080  (or any other free host port)
+#      Or set a domain in the "Domains" section so Traefik handles TLS
+#      and you don't need a direct port mapping.
 #
 #   5. First boot: the backend container runs `python -m app.prestart`
 #      (which calls `Base.metadata.create_all` to bootstrap the schema)
@@ -66,9 +65,10 @@ name: nas-portfolio-backend
 #     purpose) so MySQL is reachable only from `backend` over the
 #     compose-internal network. If you want to inspect it from outside
 #     temporarily, add `"3306:3306"` and remove it after.
-#   - The `uploads_data` volume persists user-uploaded media across
-#     redeploys. `docker compose down -v` would wipe it — only use for
-#     a true reset.
+#   - The `uploads_data` and `snapshots_data` volumes persist
+#     user-uploaded media and generated snapshots across redeploys.
+#     `docker compose down -v` would wipe them — only use for a true
+#     reset.
 #   - The .env.coolify.example file in the repo root lists every
 #     variable above, blank, ready to copy into Coolify.
 
@@ -104,49 +104,51 @@ services:
       db:
         condition: service_healthy
     environment:
+      # --- Database ---
       DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://portfolio:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-portfolio}}
+
+      # --- Backend auth ---
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
       JWT_ALGORITHM: HS256
       JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
+
+      # --- Frontend wiring ---
       CORS_ORIGINS: ${CORS_ORIGINS}
       PUBLIC_API_URL: ${PUBLIC_API_URL}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+
+      # --- Filesystem paths (all inside the /data volume) ---
+      # Both UPLOAD_DIR and SNAPSHOTS_DIR live on the same persistent
+      # volume. They MUST be set explicitly because the default
+      # snapshot path (computed by `app/config.py`) assumes a
+      # development layout (../frontend/public/__snapshots__) that
+      # doesn't exist in the Docker image.
       UPLOAD_DIR: /data/uploads
+      SNAPSHOTS_DIR: /data/snapshots
+
+      # --- Uploads ---
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-8}
       MAX_CV_UPLOAD_MB: ${MAX_CV_UPLOAD_MB:-10}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+
+      # --- Optional: contact-form email notifications ---
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       CONTACT_NOTIFY_TO: ${CONTACT_NOTIFY_TO:-}
     volumes:
       - uploads_data:/data/uploads
+      - snapshots_data:/data/snapshots
     # NO `ports:` and NO `expose:` on purpose.
     #
     # Coolify handles host port publishing and reverse-proxy routing
-    # via its own "Port Mappings" UI and Traefik. The `EXPOSE 8000`
-    # in backend/Dockerfile is what tells Coolify which port the
-    # container listens on — Coolify will then publish it on 0.0.0.0
-    # (or your chosen host port) automatically.
-    #
-    # IMPORTANT — choose a host port that does NOT collide with
-    # Coolify itself. Coolify's web UI listens on port 8000 by
-    # default, so set the Port Mapping in the Coolify resource UI to
-    #     8001:8000
-    # (host port 8001 → container port 8000). Any free host port
-    # works; 8001 is the conventional choice here.
-    #
-    # Why not declare `ports:` directly?
-    #   - Coolify's port-publishing logic runs on its own and will
-    #     conflict with anything in `ports:`.
-    #   - If we set `ports: 8000:8000` and the previous deploy's
-    #     container hasn't finished tearing down yet, you get
-    #     "port is already allocated" failures.
-    #   - If you set the same port for two services, same problem.
-    #
-    # The right place to set the host port is in Coolify's resource
-    # configuration (Port Mappings section).
+    # via its own "Port Mappings" UI and Traefik. The container
+    # listens on port 8080 (see backend/Dockerfile's EXPOSE 8080 +
+    # uvicorn --port 8080). The host port (e.g. 8001) is configured
+    # in Coolify's resource UI — set it there to avoid colliding with
+    # Coolify's own web UI (which uses port 8000 by default).
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      # Matches the container's actual uvicorn port (8080).
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -161,3 +163,8 @@ volumes:
     # Persists user-uploaded media across redeploys; mounted at
     # /data/uploads in the backend container (UPLOAD_DIR above).
     name: nas-portfolio-uploads
+  snapshots_data:
+    # Persists generated static snapshots across redeploys; mounted
+    # at /data/snapshots in the backend container (SNAPSHOTS_DIR).
+    name: nas-portfolio-snapshots
+
