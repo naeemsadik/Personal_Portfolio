@@ -77,21 +77,42 @@ services:
     image: mysql:8.0
     container_name: nas-portfolio-db
     restart: unless-stopped
-    # The official mysql:8.0 entrypoint auto-runs every *.sql/*.sh file
-    # in /docker-entrypoint-initdb.d/ ONCE — on first boot only (when
-    # /var/lib/mysql is empty). We mount db/init.sql there to
-    # idempotently create the `portfolio` database and the
-    # `portfolio`@'%' user with the password from MYSQL_PASSWORD.
+    # We override the entrypoint with a one-liner that interpolates
+    # ${MYSQL_PASSWORD} into /docker-entrypoint-initdb.d/init.sql
+    # via envsubst BEFORE delegating to the official mysql:8.0
+    # entrypoint. This is necessary because:
     #
-    # SQL files are NOT env-var-interpolated by MySQL, so we wrap
-    # the entrypoint with db/docker-entrypoint.sh which runs
-    # `envsubst` on init.sql first, then hands control to the
-    # official docker-entrypoint.sh.
+    #  - SQL files mounted into /docker-entrypoint-initdb.d/ are
+    #    passed straight to the mysql client, NOT shell-expanded, so
+    #    ${MYSQL_PASSWORD} placeholders wouldn't be substituted.
+    #  - The official entrypoint only runs /docker-entrypoint-initdb.d/
+    #    files ONCE — when /var/lib/mysql is empty.
+    #
+    # We bind-mount the entire ./db directory to /docker-entrypoint-initdb.d/
+    # (NOT :ro, so envsubst can rewrite init.sql in place). The mysql
+    # image has no files in that directory by default, so the mount
+    # doesn't shadow anything. The entrypoint override uses `sh -c`
+    # (no extra script file) to avoid the runc "is a directory"
+    # error from a previous attempt that bind-mounted a wrapper
+    # under /usr/local/bin/.
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
-      - ./db/docker-entrypoint.sh:/usr/local/bin/custom-entrypoint.sh:ro
-    entrypoint: ["/usr/local/bin/custom-entrypoint.sh"]
+      - ./db:/docker-entrypoint-initdb.d
+    # `command: mysqld` is what the official entrypoint expects as
+    # its first arg. Our sh -c wraps that with envsubst first.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ -f /docker-entrypoint-initdb.d/init.sql ] && [ -n "$$MYSQL_PASSWORD" ]; then
+          echo "[entrypoint] interpolating MYSQL_PASSWORD into init.sql"
+          tmp="$$(mktemp)"
+          envsubst < /docker-entrypoint-initdb.d/init.sql > "$$tmp"
+          cat "$$tmp" > /docker-entrypoint-initdb.d/init.sql
+          rm -f "$$tmp"
+        fi
+        exec docker-entrypoint.sh "$$@"
     command: ["mysqld"]
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in Coolify}
