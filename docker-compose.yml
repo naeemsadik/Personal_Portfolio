@@ -1,15 +1,17 @@
-name: nas-portfolio
+name: nas-portfolio-backend
 
-# Docker Compose for self-hosting on Coolify.
+# Docker Compose for self-hosting the FastAPI BACKEND + MySQL on Coolify.
+#
+# The Next.js FRONTEND is NOT part of this compose — it's hosted
+# elsewhere (e.g. Vercel). The two services communicate over HTTPS.
 #
 # Services:
-#   - frontend (Next.js, port 3000)
 #   - backend  (FastAPI + uvicorn, port 8000)
 #   - db       (MySQL 8, internal only — not exposed to the host)
 #
 # Persistent data:
 #   - mysql_data  : MySQL datadir (survives restarts + redeploys)
-#   - uploads_data: backend/file uploads served at /media/*
+#   - uploads_data: backend file uploads served at /media/*
 #
 # How to deploy on Coolify:
 #   1. Push the repo to GitHub/GitLab.
@@ -19,44 +21,55 @@ name: nas-portfolio
 #      (these get injected into the containers at runtime — never commit
 #      real secrets):
 #
-#        MYSQL_ROOT_PASSWORD      (strong random)
+#        # --- Database ---
+#        MYSQL_ROOT_PASSWORD      (strong random, ≥24 chars)
 #        MYSQL_DATABASE           = portfolio
 #        MYSQL_USER               = portfolio
-#        MYSQL_PASSWORD           (strong random)
+#        MYSQL_PASSWORD           (strong random, ≥24 chars)
 #
+#        # --- Backend ---
+#        # The DATABASE_URL below references the in-compose `db` service.
+#        # Coolify fills MYSQL_PASSWORD for you via ${MYSQL_PASSWORD}.
 #        DATABASE_URL             = mysql+pymysql://portfolio:${MYSQL_PASSWORD}@db:3306/portfolio
 #        JWT_SECRET               (secrets.token_urlsafe(48))
 #        JWT_EXPIRE_MIN           = 60
 #        ADMIN_BOOTSTRAP_EMAIL    = [email protected]
 #        ADMIN_BOOTSTRAP_PASSWORD (strong random — change after first login)
-#        CORS_ORIGINS             = https://your-public-frontend-host
-#        PUBLIC_API_URL           = https://api.your-public-backend-host
-#        NEXT_PUBLIC_SITE_URL     = https://your-public-frontend-host
-#        NEXT_PUBLIC_API_URL      = https://api.your-public-backend-host
-#        API_INTERNAL_URL         = http://backend:8000
-#        UPLOAD_DIR               = /data/uploads
+#
+#        # --- Frontend wiring ---
+#        # The public URL of your deployed Next.js site (Vercel etc).
+#        CORS_ORIGINS             = https://your-frontend-host
+#        PUBLIC_API_URL           = https://api.your-backend-host
+#        NEXT_PUBLIC_SITE_URL     = https://your-frontend-host
+#
+#        # --- Uploads ---
 #        MAX_UPLOAD_MB            = 8
 #        MAX_CV_UPLOAD_MB         = 10
+#
+#        # --- Optional: contact-form email notifications ---
 #        RESEND_API_KEY           (optional)
 #        CONTACT_NOTIFY_TO        (optional)
 #
-#   4. Expose ports 3000 (frontend) and 8000 (backend) in Coolify, or put
-#      them behind your preferred reverse-proxy / wildcard certificate.
-#      Coolify's built-in Traefik will pick them up if you set the right
-#      `ports` / `labels` — see the coolify-specific section at the bottom.
+#   4. Expose port 8000 in Coolify. Either let Coolify's Traefik handle
+#      TLS (recommended: set a domain like api.your-domain.tld in the
+#      "Domains" section of the resource), or use the in-compose
+#      `ports:` mapping (currently bound to 127.0.0.1:8000).
 #
-#   5. First boot: the backend container runs `python -m app.seed` which
-#      creates the admin user + initial content. After that, log into
-#      `/admin/login` and change the password.
+#   5. First boot: the backend container runs `alembic upgrade head`
+#      then `python -m app.seed` which creates the admin user + initial
+#      content. After that, log into /admin/login (on the frontend) and
+#      change the password.
 #
 # Notes:
 #   - The `db` service has NO host port mapping (`ports:` omitted on
 #     purpose) so MySQL is reachable only from `backend` over the
 #     compose-internal network. If you want to inspect it from outside
 #     temporarily, add `"3306:3306"` and remove it after.
-#   - `API_INTERNAL_URL=http://backend:8000` is what Next.js uses for
-#     server-side fetches; `NEXT_PUBLIC_API_URL` is what the browser uses
-#     (must be the public URL).
+#   - The `uploads_data` volume persists user-uploaded media across
+#     redeploys. `docker compose down -v` would wipe it — only use for
+#     a true reset.
+#   - The .env.coolify.example file in the repo root lists every
+#     variable above, blank, ready to copy into Coolify.
 
 services:
   db:
@@ -109,7 +122,7 @@ services:
     ports:
       # 127.0.0.1:8000 keeps it unexposed to the LAN; remove the
       # 127.0.0.1 prefix if you want it on 0.0.0.0. Coolify will
-      # typically override `ports:` via its own port UI.
+      # typically override `ports:` via its own port UI / domain config.
       - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
@@ -118,62 +131,12 @@ services:
       retries: 3
       start_period: 30s
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        # Build-time public values (baked into the JS bundle).
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
-    container_name: nas-portfolio-frontend
-    restart: unless-stopped
-    depends_on:
-      backend:
-        condition: service_healthy
-    environment:
-      # Runtime values available to server-side code (not inlined into
-      # the client bundle). `hostname`/`internal` URLs are what Next.js
-      # uses for SSR fetches.
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
-      NODE_ENV: production
-      PORT: "3000"
-      HOSTNAME: "0.0.0.0"
-    ports:
-      - "127.0.0.1:3000:3000"
-
 volumes:
   mysql_data:
-    # Survives `docker compose down` (no `--remove-orphans` data wipe).
-    # `docker compose down -v` removes it — use only for a true reset.
+    # Survives `docker compose down` (no `-v` flag). `docker compose
+    # down -v` removes it — use only for a true reset.
     name: nas-portfolio-mysql
   uploads_data:
-    # Persists user-uploaded media across redeploys; mounted at /data/uploads
-    # in the backend container (UPLOAD_DIR above).
+    # Persists user-uploaded media across redeploys; mounted at
+    # /data/uploads in the backend container (UPLOAD_DIR above).
     name: nas-portfolio-uploads
-
-# ---------------------------------------------------------------------------
-# Optional: Coolify / Traefik labels.
-# Uncomment and edit the hostnames below if you want Coolify's built-in
-# Traefik to terminate TLS for you. Otherwise, leave as-is and configure
-# proxying in the Coolify UI under "Ports" / "Domains".
-# ---------------------------------------------------------------------------
-# x-common-labels: &common-labels
-#   coolify.project: nas-portfolio
-#
-#  backend:
-#    labels:
-#      <<: *common-labels
-#      traefik.http.routers.nas-backend.rule: Host(`api.your-domain.tld`)
-#      traefik.http.routers.nas-backend.tls.certresolver: letsencrypt
-#      traefik.http.services.nas-backend.loadbalancer.server.port: 8000
-#
-#  frontend:
-#    labels:
-#      <<: *common-labels
-#      traefik.http.routers.nas-frontend.rule: Host(`your-domain.tld`)
-#      traefik.http.routers.nas-frontend.tls.certresolver: letsencrypt
-#      traefik.http.services.nas-frontend.loadbalancer.server.port: 3000
