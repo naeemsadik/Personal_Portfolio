@@ -51,11 +51,11 @@ RUN mkdir -p /data/uploads && chown -R app:app /data
 
 USER app
 
-EXPOSE 8000
+EXPOSE 8080
 
 # Seed on first start, then run migrations + uvicorn. We use
 # `alembic upgrade head` (not `create_all`) so the schema in MySQL
 # matches the versioned migrations in alembic/versions/. The seed step
 # is idempotent and refreshes the admin password on every boot — set
 # ADMIN_BOOTSTRAP_PASSWORD once and forget it.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080"]
