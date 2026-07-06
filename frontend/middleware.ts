@@ -1,9 +1,10 @@
 /**
  * Snapshot middleware.
  *
- * Public pages normally render live SSR. Snapshot rewrites are opt-in with
- * ENABLE_SNAPSHOT_MIDDLEWARE=1 because hosted frontend deployments, such as
- * Vercel, do not automatically contain snapshot files generated on the VPS.
+ * Public pages normally render live SSR. Automatic published-snapshot rewrites
+ * are opt-in with ENABLE_SNAPSHOT_MIDDLEWARE=1 because hosted frontend
+ * deployments, such as Vercel, do not automatically contain snapshot files
+ * generated on the VPS. Explicit preview links with ?snapshot=v... still work.
  *
  * EMERGENCY_DISABLE_SNAPSHOT_MODE=1 still short-circuits everything.
  */
@@ -59,10 +60,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       return NextResponse.next();
     }
 
-    if (!snapshotMiddlewareEnabled()) {
-      return NextResponse.next();
-    }
-
     const { pathname, searchParams } = req.nextUrl;
     const previewParam = searchParams.get('snapshot');
 
@@ -78,6 +75,10 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         maxAge: 60 * 60,
       });
       return res;
+    }
+
+    if (!snapshotMiddlewareEnabled()) {
+      return NextResponse.next();
     }
 
     const state = await fetchSiteState(req);
