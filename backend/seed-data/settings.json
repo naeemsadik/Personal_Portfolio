@@ -1,0 +1,26 @@
+{
+  "siteTitle": "Naeem Abdullah Sadik — Portfolio",
+  "description": "Portfolio of Naeem Abdullah Sadik — full-stack developer with a strong track record of shipping production-grade web applications. Currently Lead Developer at JudgeX.",
+  "ogImage": "/og.svg",
+  "accentColor": "#7cf5b3",
+  "navOrder": ["home", "experience", "projects", "blog", "contact"],
+  "cvUrl": "",
+  "email": "naeemabdullahsadik@gmail.com",
+  "phone": "+880 1707 403973",
+  "location": "Dhaka, Bangladesh",
+  "github": "https://github.com/naeemsadik",
+  "linkedin": "",
+  "leetcode": "https://leetcode.com/naeemsadik",
+  "languages": [
+    { "name": "English", "level": "Fluent" },
+    { "name": "Bangla", "level": "Native" },
+    { "name": "Hindi", "level": "Conversational" }
+  ],
+  "skills": {
+    "languages": ["JavaScript", "TypeScript", "PHP", "C", "C++", "Java", "SQL"],
+    "frontend": ["React.js", "Next.js"],
+    "backend": ["FastAPI", "Laravel", "CodeIgniter", "REST APIs", "JWT Auth", "PostgreSQL", "MySQL", "Redis"],
+    "infrastructure": ["Docker", "Kubernetes", "K3s", "Git", "GitHub"],
+    "tools": ["Figma", "Adobe Illustrator", "VS Code", "Team Leadership"]
+  }
+}

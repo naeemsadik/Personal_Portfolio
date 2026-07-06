@@ -1,0 +1,62 @@
+[
+  {
+    "id": "judgex",
+    "title": "JudgeX",
+    "summary": "Production online judge platform — secure sandboxed code execution on Kubernetes.",
+    "description": "JudgeX is a production online judge capable of compiling and executing untrusted user code in isolated Docker containers with strict resource limits. A distributed Redis-backed submission queue feeds a FastAPI backend that delivers low-latency verdicts under concurrent load, and the whole platform runs on a K3s (lightweight Kubernetes) cluster. The Next.js frontend handles user management, problem sets, leaderboards, and contest tracking against PostgreSQL.",
+    "tech": ["FastAPI", "Next.js", "PostgreSQL", "Redis", "Docker", "K3s"],
+    "liveUrl": "https://judgex.uiucomputerclub.com",
+    "repoUrl": "",
+    "coverUrl": "",
+    "featured": true,
+    "order": 0
+  },
+  {
+    "id": "boikothok",
+    "title": "Boikothok",
+    "summary": "Book e-commerce platform — Laravel backend powering web + mobile clients.",
+    "description": "Boikothok is a book e-commerce platform serving both a web frontend and a mobile app from a single Laravel API. I designed the full backend: database schema, JWT-based authentication, and RESTful APIs for product management, user operations, and order processing — focused on security, reliability, and scalability, with cross-team ownership of backend delivery end-to-end.",
+    "tech": ["PHP", "Laravel", "MySQL", "JWT", "REST APIs"],
+    "liveUrl": "https://boikothok.com",
+    "repoUrl": "",
+    "coverUrl": "",
+    "featured": true,
+    "order": 1
+  },
+  {
+    "id": "robohub-bd",
+    "title": "Robohub BD",
+    "summary": "Robotics & electronics e-commerce platform with payment-gateway integration.",
+    "description": "Robohub BD is an e-commerce platform for robotics and electronics, serving 2,000+ active customers with secure payment-gateway integration. I owned the deployment pipeline and the production release end-to-end, taking the platform from development to launch.",
+    "tech": ["Laravel", "Bootstrap", "Payment Gateway"],
+    "liveUrl": "https://robohub.com.bd",
+    "repoUrl": "",
+    "coverUrl": "",
+    "featured": true,
+    "order": 2
+  },
+  {
+    "id": "c-structure",
+    "title": "C-Structure",
+    "summary": "Open-source C standard-library extension: dynamic arrays, linked lists, hash maps.",
+    "description": "C-Structure is an open-source C standard library extension providing STL-like generic dynamic arrays, linked lists, and hash maps. Demonstrates deep understanding of CS fundamentals and manual memory management.",
+    "tech": ["C", "Data Structures", "Open Source"],
+    "liveUrl": "",
+    "repoUrl": "",
+    "coverUrl": "",
+    "featured": false,
+    "order": 3
+  },
+  {
+    "id": "uiu-computer-club",
+    "title": "UIU Computer Club Portal",
+    "summary": "Official UIU Computer Club portal — component-driven redesign.",
+    "description": "Led the full redesign and implementation of the official UIU Computer Club portal, introducing a component-driven architecture and improving maintainability over the previous monolithic build.",
+    "tech": ["React.js", "Tailwind CSS", "Laravel"],
+    "liveUrl": "https://computerclub.uiu.ac.bd",
+    "repoUrl": "",
+    "coverUrl": "",
+    "featured": false,
+    "order": 4
+  }
+]

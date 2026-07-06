@@ -1,0 +1,18 @@
+# Migrations
+
+This directory is managed by [alembic](https://alembic.sqlalchemy.org/).
+
+## Common commands
+
+```bash
+# Apply the latest schema
+alembic upgrade head
+
+# Auto-generate a new migration after editing app/models/*.py
+alembic revision --autogenerate -m "describe change"
+
+# Roll back one migration
+alembic downgrade -1
+```
+
+`alembic/env.py` pulls `DATABASE_URL` from your environment (via `app.config`).

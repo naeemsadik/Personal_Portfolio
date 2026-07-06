@@ -1,0 +1,63 @@
+ run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
+
+naeem@vmi3300868:~$ whoami
+naeem
+naeem@vmi3300868:~$ sudo apt update
+[sudo] password for naeem:
+Hit:1 http://archive.ubuntu.com/ubuntu jammy InRelease
+Get:2 http://security.ubuntu.com/ubuntu jammy-security InRelease [129 kB]
+Get:3 http://archive.ubuntu.com/ubuntu jammy-updates InRelease [128 kB]
+Get:4 https://download.docker.com/linux/ubuntu jammy InRelease [48.5 kB]
+Hit:5 http://archive.ubuntu.com/ubuntu jammy-backports InRelease
+Get:6 http://security.ubuntu.com/ubuntu jammy-security/main amd64 Packages [3324 kB]
+Get:7 http://security.ubuntu.com/ubuntu jammy-security/main Translation-en [468 kB]
+Get:8 https://download.docker.com/linux/ubuntu jammy/stable amd64 Packages [81.4 kB]
+Get:9 http://security.ubuntu.com/ubuntu jammy-security/main amd64 c-n-f Metadata [14.5 kB]
+Get:10 http://security.ubuntu.com/ubuntu jammy-security/restricted amd64 Packages [5925 kB]
+Get:11 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 Packages [3594 kB]
+Get:12 http://security.ubuntu.com/ubuntu jammy-security/restricted Translation-en [1131 kB]
+Get:13 http://archive.ubuntu.com/ubuntu jammy-updates/main Translation-en [538 kB]
+Get:14 http://security.ubuntu.com/ubuntu jammy-security/universe amd64 Packages [1041 kB]
+Get:15 http://archive.ubuntu.com/ubuntu jammy-updates/main amd64 c-n-f Metadata [20.0 kB]
+Get:16 http://archive.ubuntu.com/ubuntu jammy-updates/restricted amd64 Packages [6144 kB]
+Get:17 http://security.ubuntu.com/ubuntu jammy-security/universe Translation-en [232 kB]
+Get:18 http://security.ubuntu.com/ubuntu jammy-security/universe amd64 c-n-f Metadata [23.1 kB]
+Get:19 http://archive.ubuntu.com/ubuntu jammy-updates/restricted Translation-en [1171 kB]
+Get:20 http://archive.ubuntu.com/ubuntu jammy-updates/universe amd64 Packages [1276 kB]
+Get:21 http://archive.ubuntu.com/ubuntu jammy-updates/universe Translation-en [320 kB]
+Get:22 http://archive.ubuntu.com/ubuntu jammy-updates/universe amd64 c-n-f Metadata [30.7 kB]
+Fetched 25.6 MB in 5s (4958 kB/s)
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+20 packages can be upgraded. Run 'apt list --upgradable' to see them.
+naeem@vmi3300868:~$ ls ~/.ssh
+ls: cannot access '/home/naeem/.ssh': No such file or directory
+naeem@vmi3300868:~$ dir $HOME\.ssh
+dir: cannot access '/home/naeem.ssh': No such file or directory
+naeem@vmi3300868:~$ cat ~/.ssh/id_ed25519.pub
+cat: /home/naeem/.ssh/id_ed25519.pub: No such file or directory
+naeem@vmi3300868:~$ ssh-keygen -t ed25519 -C "naeemabdullahsadik@gmail.com"
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (/home/naeem/.ssh/id_ed25519):
+Created directory '/home/naeem/.ssh'.
+Enter passphrase (empty for no passphrase):
+Enter same passphrase again:
+Your identification has been saved in /home/naeem/.ssh/id_ed25519
+Your public key has been saved in /home/naeem/.ssh/id_ed25519.pub
+The key fingerprint is:
+SHA256:Wxv/DwYyjIjx32jBAGJLExuZhR3dftbUfETVkaorZWw naeemabdullahsadik@gmail.com
+The key's randomart image is:
++--[ED25519 256]--+
+|  BB+o .     o +O|
+| o+*... .   . o.o|
+|  o . ..   o  .. |
+|     + +.oo ..   |
+|    . o SoB o    |
+|       . * E .   |
+|        = * o o  |
+|       . . . o . |
+|          .   ...|
++----[SHA256]-----+
+naeem@vmi3300868:~$

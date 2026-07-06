@@ -1,0 +1,25 @@
+# --- Database ---
+# Leave DATABASE_URL empty to use the local SQLite fallback at
+# backend/.data/portfolio.db. Created automatically on first run.
+DATABASE_URL=
+
+# --- JWT ---
+# Generate a strong secret: python -c "import secrets; print(secrets.token_urlsafe(48))"
+JWT_SECRET=ACXkxXkI9IVrbC0IINkCWZxS0Eyrcnd6T4ApROSaTbrMfeCkIU1p4Y4iPjlXVaIZ
+JWT_EXPIRE_MIN=840
+JWT_ALGORITHM=HS256
+
+# --- Bootstrap admin (used by `python -m app.seed` only) ---
+ADMIN_BOOTSTRAP_EMAIL=naeemabdullahsadik@gmail.com
+ADMIN_BOOTSTRAP_PASSWORD=finally_portfolio
+
+# --- CORS (comma-separated origins) ---
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+
+# --- Uploads ---
+UPLOAD_DIR=./uploads
+MAX_UPLOAD_MB=8
+
+# --- Public URL used to build absolute URLs returned to the client ---
+# Must match where FastAPI is reachable from the browser.
+PUBLIC_API_URL=http://localhost:8000

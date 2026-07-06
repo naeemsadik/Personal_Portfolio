@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — flat dark navy background, mint accent #7cf5b3.
+ * Inter (body) + Space Grotesk (display) via next/font.
+ */
+@layer base {
+  :root {
+    --background: 222 47% 5%;       /* #020617 dark navy */
+    --foreground: 0 0% 93%;         /* #ededed */
+
+    --card: 222 30% 8%;             /* #0d1424 — slightly lighter than bg */
+    --card-foreground: 0 0% 93%;
+
+    --popover: 222 30% 8%;
+    --popover-foreground: 0 0% 93%;
+
+    --primary: 152 84% 72%;         /* #7cf5b3 */
+    --primary-foreground: 152 60% 8%;
+
+    --secondary: 222 30% 11%;       /* #131a2c */
+    --secondary-foreground: 0 0% 93%;
+
+    --muted: 222 25% 14%;           /* #1a2238 */
+    --muted-foreground: 222 12% 65%;/* #8a93a8 */
+
+    --accent: 152 84% 72%;          /* matches primary for consistency */
+    --accent-foreground: 152 60% 8%;
+
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 222 25% 16%;          /* #20283e */
+    --input: 222 25% 16%;
+    --ring: 152 84% 72%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 0 0% 93%;
+    --sidebar-primary: 152 84% 72%;
+    --sidebar-primary-foreground: 152 60% 8%;
+    --sidebar-accent: 222 30% 11%;
+    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-border: 222 25% 16%;
+    --sidebar-ring: 152 84% 72%;
+
+    --chart-1: 152 84% 72%;
+    --chart-2: 200 80% 65%;
+    --chart-3: 30 90% 60%;
+    --chart-4: 280 70% 70%;
+    --chart-5: 340 80% 65%;
+  }
+
+  .dark {
+    --sidebar-background: 222 47% 5%;
+    --sidebar-foreground: 0 0% 93%;
+    --sidebar-primary: 152 84% 72%;
+    --sidebar-primary-foreground: 152 60% 8%;
+    --sidebar-accent: 222 30% 11%;
+    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-border: 222 25% 16%;
+    --sidebar-ring: 152 84% 72%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    color-scheme: dark;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
+  }
+  ::selection {
+    background: hsl(var(--accent) / 0.25);
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
+  }
+  .grid-bg {
+    background-image:
+      linear-gradient(to right, hsl(var(--border) / 0.6) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(var(--border) / 0.6) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+  .radial-fade {
+    background: radial-gradient(
+      ellipse at center,
+      transparent 0%,
+      hsl(var(--background)) 70%
+    );
+  }
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+  .glow-accent {
+    box-shadow:
+      0 0 0 1px hsl(var(--accent) / 0.3),
+      0 0 24px -4px hsl(var(--accent) / 0.5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" width="600" height="600">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </radialGradient>
+    <radialGradient id="face" cx="50%" cy="45%" r="35%">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="60%" stop-color="#0d0d0d"/>
+      <stop offset="100%" stop-color="#070707"/>
+    </radialGradient>
+  </defs>
+  <rect width="600" height="600" fill="url(#g)"/>
+  <!-- Subtle grid -->
+  <g stroke="#1f1f1f" stroke-width="1" opacity="0.35">
+    <path d="M0 100h600M0 200h600M0 300h600M0 400h600M0 500h600"/>
+    <path d="M100 0v600M200 0v600M300 0v600M400 0v600M500 0v600"/>
+  </g>
+  <!-- Stylized silhouette -->
+  <ellipse cx="300" cy="260" rx="120" ry="140" fill="url(#face)"/>
+  <ellipse cx="300" cy="500" rx="180" ry="120" fill="url(#face)" opacity="0.9"/>
+  <!-- Accent ring -->
+  <circle cx="300" cy="300" r="260" fill="none" stroke="#7cf5b3" stroke-width="1" opacity="0.15"/>
+  <!-- Label -->
+  <text x="300" y="572" text-anchor="middle" fill="#7cf5b3" font-family="Inter, system-ui, sans-serif" font-size="14" letter-spacing="4" opacity="0.8">UPLOAD PORTRAIT IN /ADMIN</text>
+</svg>

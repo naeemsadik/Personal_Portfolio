@@ -1,0 +1,13 @@
+{
+  "greeting": "Hi, I'm Naeem",
+  "headline": ["hi,", "naeem", "here."],
+  "tagline": "Full-stack developer in Dhaka. I build production systems — judges, e-commerce backends, distributed queues — and write about what I learn along the way.",
+  "primaryCta": { "label": "Say hi!", "href": "/contact" },
+  "secondaryCta": { "label": "Read the Blog", "href": "/blog" },
+  "socials": [
+    { "platform": "github", "url": "https://github.com/naeemsadik", "label": "GitHub" },
+    { "platform": "leetcode", "url": "https://leetcode.com/naeemsadik", "label": "LeetCode" },
+    { "platform": "email", "url": "mailto:naeemabdullahsadik@gmail.com", "label": "Email" }
+  ],
+  "portraitUrl": "/portrait/PictureonNAS.particles.json"
+}

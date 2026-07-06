@@ -1,0 +1,26 @@
+[
+  {
+    "slug": "hello-world",
+    "title": "Hello, world",
+    "excerpt": "Kicking off the blog with a quick intro — what I'll be writing about and why.",
+    "body": "## Welcome\n\nThis is the first post on the new portfolio. I'll be writing about **shipping production systems**, the lessons behind projects like JudgeX and Boikothok, and what I'm learning as a CS student at UIU.\n\nA few things I plan to cover:\n\n- Architecting sandboxed code-execution pipelines\n- Distributed queues with Redis + FastAPI under load\n- Kubernetes (K3s) on a budget — what actually breaks\n- Hackathon post-mortems\n- Backend design patterns that scale beyond a tutorial\n\nIf any of that sounds useful, stick around.\n\n— Naeem",
+    "coverUrl": "",
+    "tags": ["meta", "career"],
+    "status": "published",
+    "reading_time_min": 1,
+    "ord": 0,
+    "publishedAt": "2026-06-20T00:00:00Z"
+  },
+  {
+    "slug": "judgex-architecture",
+    "title": "How JudgeX Sandboxes Untrusted Code",
+    "excerpt": "A walkthrough of how JudgeX compiles and runs untrusted submissions in isolated Docker containers.",
+    "body": "## The problem\n\nA competitive-programming judge has a simple job: run untrusted code, return a verdict. The catch is that **the code is hostile** — contestants will try to escape the sandbox, exfiltrate data, fork-bomb the box, etc.\n\n## The pipeline\n\n1. Submission arrives via the API → queued in Redis.\n2. A worker pulls a job and spawns a Docker container with:\n   - `--network=none`\n   - `--memory=256m --memory-swap=256m`\n   - `--pids-limit=64`\n   - `--cpus=1.0`\n   - A read-only root filesystem\n   - A tmpfs for I/O\n3. The compiled binary is copied in and run with a hard wall-clock timeout.\n4. The verdict (AC / WA / TLE / RE / CE) is written back to Redis and the container is destroyed.\n\n## Why K3s\n\nWe run the worker pool on a K3s cluster — it gives us pod-level isolation that's already battle-tested, plus easy horizontal scaling. A single-node K3s box is enough for a university-scale judge.\n\n## What's next\n\nI'd love to swap the verdict fan-out for NATS, and add per-language resource quotas. More on that soon.",
+    "coverUrl": "",
+    "tags": ["judgex", "docker", "kubernetes", "security"],
+    "status": "published",
+    "reading_time_min": 4,
+    "ord": 1,
+    "publishedAt": "2026-06-15T00:00:00Z"
+  }
+]
