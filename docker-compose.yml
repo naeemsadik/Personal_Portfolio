@@ -119,11 +119,24 @@ services:
       CONTACT_NOTIFY_TO: ${CONTACT_NOTIFY_TO:-}
     volumes:
       - uploads_data:/data/uploads
-    ports:
-      # 127.0.0.1:8000 keeps it unexposed to the LAN; remove the
-      # 127.0.0.1 prefix if you want it on 0.0.0.0. Coolify will
-      # typically override `ports:` via its own port UI / domain config.
-      - "127.0.0.1:8000:8000"
+    # NO `ports:` and NO `expose:` on purpose.
+    #
+    # Coolify handles host port publishing and reverse-proxy routing
+    # via its own "Port Mappings" UI and Traefik. The `EXPOSE 8000`
+    # in backend/Dockerfile is what tells Coolify which port the
+    # container listens on — Coolify will then publish it on 0.0.0.0
+    # (or your chosen host port) automatically.
+    #
+    # Why not declare `ports:` directly?
+    #   - Coolify's port-publishing logic runs on its own and will
+    #     conflict with anything in `ports:`.
+    #   - If we set `ports: 8000:8000` and the previous deploy's
+    #     container hasn't finished tearing down yet, you get
+    #     "port is already allocated" failures.
+    #   - If you set the same port for two services, same problem.
+    #
+    # The right place to set the host port is in Coolify's resource
+    # configuration (Port Mappings section).
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
       interval: 30s
