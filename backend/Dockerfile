@@ -53,9 +53,25 @@ USER app
 
 EXPOSE 8080
 
-# Seed on first start, then run migrations + uvicorn. We use
-# `alembic upgrade head` (not `create_all`) so the schema in MySQL
-# matches the versioned migrations in alembic/versions/. The seed step
-# is idempotent and refreshes the admin password on every boot — set
-# ADMIN_BOOTSTRAP_PASSWORD once and forget it.
-CMD ["sh", "-c", "alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080"]
+# Startup sequence on every container boot:
+#
+#   1. `python -m app.prestart` runs `Base.metadata.create_all` to
+#      bootstrap all base tables on a fresh DB. The first alembic
+#      migration (`918698828ab8`) tries to ALTER TABLE
+#      analytics_events — which fails if the table doesn't exist
+#      yet, so we have to create it first.
+#
+#   2. `alembic upgrade head` applies the additive schema changes
+#      (new columns + indexes) on top of the base tables.
+#
+#   3. `python -m app.seed` is idempotent: it upserts the admin user
+#      (refreshing the password from ADMIN_BOOTSTRAP_PASSWORD on
+#      every boot) and writes the initial content if missing.
+#
+#   4. `uvicorn app.main:app` starts the API server. The startup
+#      hook in app/main.py also runs create_all, which is harmless
+#      (it only creates tables that don't exist).
+#
+# Single-line CMD so Coolify's ARG injection doesn't break the
+# shell pipeline (it breaks bash `\\\n` line-continuations).
+CMD ["sh", "-c", "python -m app.prestart && alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080"]
