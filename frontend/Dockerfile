@@ -52,10 +52,9 @@ ENV NEXT_TELEMETRY_DISABLED=1 NEXT_PHASE=phase-production-build NODE_OPTIONS=--m
 # `next build` outputs the production app to .next/standalone if
 # `output: 'standalone'` is set in next.config.mjs. We don't set it
 # today, so we ship the regular .next build and rely on `next start`.
-# We pipe through `tee` so the full build output (including errors)
-# is visible in Coolify's build log — otherwise Next.js hides errors
-# behind a summary line.
-RUN npm run build 2>&1 | tee /tmp/next-build.log; test ${PIPESTATUS[0]} -eq 0
+# `set -ex` echoes every command and aborts on the first failure so
+# the real error (not just the exit code) shows up in Coolify's log.
+RUN set -ex && npm run build
 
 # --- Stage 3: minimal runtime image ---
 FROM node:20-alpine AS runtime
