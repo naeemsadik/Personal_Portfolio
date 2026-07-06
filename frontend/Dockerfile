@@ -1,3 +1,9 @@
+# IMPORTANT — Coolify compatibility:
+# Coolify auto-injects every env var as an `ARG` declaration at the top
+# of every stage, and rewrites `RUN` / `ENV` blocks. This Dockerfile
+# keeps every `RUN` and `ENV` on a single line so Coolify's injection
+# doesn't break shell line-continuations.
+
 # --- Stage 1: install dependencies with full devDeps so `next build` works ---
 FROM node:20-alpine AS deps
 
@@ -18,16 +24,11 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# These are baked into the client bundle at build time — pass them
-# through `docker-compose.yml` build args so changes don't require
-# editing this file.
-ARG NEXT_PUBLIC_SITE_URL
-ARG NEXT_PUBLIC_API_URL
-ARG API_INTERNAL_URL
-ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
-    NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    API_INTERNAL_URL=$API_INTERNAL_URL \
-    NEXT_TELEMETRY_DISABLED=1
+# These are baked into the client bundle at build time. Coolify
+# auto-injects them as ARG with matching names from `docker-compose.yml`
+# `args:` block + the resource env vars, so we don't redeclare them
+# here. The ENV then materialises the ARG into the build environment.
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # `next build` outputs the production app to .next/standalone if
 # `output: 'standalone'` is set in next.config.mjs. We don't set it
@@ -39,10 +40,8 @@ FROM node:20-alpine AS runtime
 
 WORKDIR /app
 
-ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
-    PORT=3000 \
-    HOSTNAME=0.0.0.0
+# Single-line ENV: Coolify rewrites multi-line ones and breaks them.
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
 
 # Non-root user for the runtime.
 RUN addgroup -g 10001 -S app && adduser -S -u 10001 -G app app
@@ -59,7 +58,6 @@ USER app
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
 
 CMD ["npx", "next", "start", "-p", "3000", "-H", "0.0.0.0"]
