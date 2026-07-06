@@ -71,63 +71,54 @@ name: nas-portfolio-backend
 #     reset.
 #   - The .env.coolify.example file in the repo root lists every
 #     variable above, blank, ready to copy into Coolify.
+#
+# About db/docker-entrypoint.sh:
+#   The `db` service wraps the official mysql:8.0 entrypoint so we
+#   can interpolate ${MYSQL_PASSWORD} into init.sql via envsubst
+#   before MySQL reads it. SQL files in /docker-entrypoint-initdb.d/
+#   are passed straight to the mysql client (no shell expansion), so
+#   the wrapper is necessary. Mounted at
+#     /usr/local/bin/custom-entrypoint.sh
+#   and used as the entrypoint. See db/docker-entrypoint.sh for the
+#   script body.
+#
+#   IMPORTANT: init.sql is mounted WITHOUT `:ro` so the wrapper can
+#   rewrite it in place after envsubst. The wrapper itself is mounted
+#   `:ro` because it never needs to be modified at runtime.
 
 services:
   db:
-    image: mysql:8.0
+    image: 'mysql:8.0'
     container_name: nas-portfolio-db
     restart: unless-stopped
-    # We override the entrypoint with a one-liner that interpolates
-    # ${MYSQL_PASSWORD} into /docker-entrypoint-initdb.d/init.sql
-    # via envsubst BEFORE delegating to the official mysql:8.0
-    # entrypoint. This is necessary because:
-    #
-    #  - SQL files mounted into /docker-entrypoint-initdb.d/ are
-    #    passed straight to the mysql client, NOT shell-expanded, so
-    #    ${MYSQL_PASSWORD} placeholders wouldn't be substituted.
-    #  - The official entrypoint only runs /docker-entrypoint-initdb.d/
-    #    files ONCE — when /var/lib/mysql is empty.
-    #
-    # We bind-mount the entire ./db directory to /docker-entrypoint-initdb.d/
-    # (NOT :ro, so envsubst can rewrite init.sql in place). The mysql
-    # image has no files in that directory by default, so the mount
-    # doesn't shadow anything. The entrypoint override uses `sh -c`
-    # (no extra script file) to avoid the runc "is a directory"
-    # error from a previous attempt that bind-mounted a wrapper
-    # under /usr/local/bin/.
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./db:/docker-entrypoint-initdb.d
-    # `command: mysqld` is what the official entrypoint expects as
-    # its first arg. Our sh -c wraps that with envsubst first.
+      - 'mysql_data:/var/lib/mysql'
+      - './db/init.sql:/docker-entrypoint-initdb.d/init.sql'
+      - './db/docker-entrypoint.sh:/usr/local/bin/custom-entrypoint.sh:ro'
     entrypoint:
-      - sh
-      - -c
-      - |
-        set -e
-        if [ -f /docker-entrypoint-initdb.d/init.sql ] && [ -n "$$MYSQL_PASSWORD" ]; then
-          echo "[entrypoint] interpolating MYSQL_PASSWORD into init.sql"
-          tmp="$$(mktemp)"
-          envsubst < /docker-entrypoint-initdb.d/init.sql > "$$tmp"
-          cat "$$tmp" > /docker-entrypoint-initdb.d/init.sql
-          rm -f "$$tmp"
-        fi
-        exec docker-entrypoint.sh "$$@"
-    command: ["mysqld"]
+      - /usr/local/bin/custom-entrypoint.sh
+    command:
+      - mysqld
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in Coolify}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-portfolio}
-      MYSQL_USER: ${MYSQL_USER:-portfolio}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}
+      # Pulling values directly from your Coolify Environment panel
+      MYSQL_ROOT_PASSWORD: '${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in Coolify}'
+      MYSQL_DATABASE: '${MYSQL_DATABASE:-portfolio}'
+      MYSQL_USER: '${MYSQL_USER:-portfolio}'
+      MYSQL_PASSWORD: '${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}'
     healthcheck:
-      # mysqladmin ping returns 0 only when the server is accepting
-      # connections — gates the backend start until DB is really ready.
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - '-h'
+        - 127.0.0.1
+        - '-u'
+        - root
+        - '-p${MYSQL_ROOT_PASSWORD}'
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
-    # No `ports:` block — DB stays internal to the compose network.
 
   backend:
     build:
@@ -139,25 +130,26 @@ services:
       db:
         condition: service_healthy
     environment:
-      # --- Database ---
-      # Built from MYSQL_USER / MYSQL_PASSWORD / MYSQL_DATABASE so it
-      # stays in sync with the `db` service above. If you override
-      # DATABASE_URL, you must keep the credentials matching what the
-      # MySQL service was initialized with — otherwise you get
-      # 'Access denied for user ...' on every connection.
-      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-portfolio}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}@db:3306/${MYSQL_DATABASE:-portfolio}
+      # Explicitly bind the URL to your exact Coolify environment names
+      DATABASE_URL: 'mysql+pymysql://${MYSQL_USER:-portfolio}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}@db:3306/${MYSQL_DATABASE:-portfolio}'
+
+      # Mirror the DB vars into the backend container so SQLAlchemy
+      # debugging / healthchecks / etc. can read them directly.
+      MYSQL_USER: '${MYSQL_USER:-portfolio}'
+      MYSQL_PASSWORD: '${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}'
+      MYSQL_DATABASE: '${MYSQL_DATABASE:-portfolio}'
 
       # --- Backend auth ---
-      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
+      JWT_SECRET: '${JWT_SECRET:?set JWT_SECRET in Coolify}'
       JWT_ALGORITHM: HS256
-      JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
-      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
-      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
+      JWT_EXPIRE_MIN: '${JWT_EXPIRE_MIN:-60}'
+      ADMIN_BOOTSTRAP_EMAIL: '${ADMIN_BOOTSTRAP_EMAIL}'
+      ADMIN_BOOTSTRAP_PASSWORD: '${ADMIN_BOOTSTRAP_PASSWORD}'
 
       # --- Frontend wiring ---
-      CORS_ORIGINS: ${CORS_ORIGINS}
-      PUBLIC_API_URL: ${PUBLIC_API_URL}
-      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      CORS_ORIGINS: '${CORS_ORIGINS}'
+      PUBLIC_API_URL: '${PUBLIC_API_URL}'
+      NEXT_PUBLIC_SITE_URL: '${NEXT_PUBLIC_SITE_URL}'
 
       # --- Filesystem paths (all inside the /data volume) ---
       # Both UPLOAD_DIR and SNAPSHOTS_DIR live on the same persistent
@@ -169,15 +161,15 @@ services:
       SNAPSHOTS_DIR: /data/snapshots
 
       # --- Uploads ---
-      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-8}
-      MAX_CV_UPLOAD_MB: ${MAX_CV_UPLOAD_MB:-10}
+      MAX_UPLOAD_MB: '${MAX_UPLOAD_MB:-8}'
+      MAX_CV_UPLOAD_MB: '${MAX_CV_UPLOAD_MB:-10}'
 
       # --- Optional: contact-form email notifications ---
-      RESEND_API_KEY: ${RESEND_API_KEY:-}
-      CONTACT_NOTIFY_TO: ${CONTACT_NOTIFY_TO:-}
+      RESEND_API_KEY: '${RESEND_API_KEY:-}'
+      CONTACT_NOTIFY_TO: '${CONTACT_NOTIFY_TO:-}'
     volumes:
-      - uploads_data:/data/uploads
-      - snapshots_data:/data/snapshots
+      - 'uploads_data:/data/uploads'
+      - 'snapshots_data:/data/snapshots'
     # NO `ports:` and NO `expose:` on purpose.
     #
     # Coolify handles host port publishing and reverse-proxy routing
@@ -187,8 +179,11 @@ services:
     # in Coolify's resource UI — set it there to avoid colliding with
     # Coolify's own web UI (which uses port 8000 by default).
     healthcheck:
-      # Matches the container's actual uvicorn port (8080).
-      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"]
+      test:
+        - CMD
+        - python
+        - '-c'
+        - "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).status == 200 else 1)"
       interval: 30s
       timeout: 5s
       retries: 3
@@ -207,4 +202,3 @@ volumes:
     # Persists generated static snapshots across redeploys; mounted
     # at /data/snapshots in the backend container (SNAPSHOTS_DIR).
     name: nas-portfolio-snapshots
-

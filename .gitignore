@@ -19,6 +19,8 @@ backend/.pytest_cache/
 backend/.mypy_cache/
 backend/uploads/*
 !backend/uploads/.gitkeep
+# Local SQLite dev database — production uses MySQL via Docker.
+backend/.data/
 
 # --- IDE / OS ---
 .vscode/

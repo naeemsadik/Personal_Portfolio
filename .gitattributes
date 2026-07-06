@@ -1,0 +1,16 @@
+# Force LF line endings on scripts and SQL files.
+#
+# Why this matters: the repository is edited on Windows (where
+# core.autocrlf=true), but Coolify's deploy server runs Linux. If
+# a script gets committed with CRLF endings, the shebang becomes
+# `#!/bin/bash\r` and the kernel can't find /bin/bash — which
+# makes the entrypoint fail. Pinning eol=lf for these specific
+# extensions guarantees the deployed copy is identical regardless
+# of host OS.
+
+*.sh    text eol=lf
+*.sql   text eol=lf
+Dockerfile text eol=lf
+
+# Everything else: leave it to core.autocrlf / core.eol.
+* text=auto
