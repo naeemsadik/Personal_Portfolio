@@ -72,46 +72,89 @@ name: nas-portfolio-backend
 #   - The .env.coolify.example file in the repo root lists every
 #     variable above, blank, ready to copy into Coolify.
 #
-# About db/docker-entrypoint.sh + db/Dockerfile:
-#   The `db` service builds a CUSTOM image (FROM mysql:8.0) that
-#   bakes in:
-#     - db/docker-entrypoint.sh → /usr/local/bin/custom-entrypoint.sh
-#       as the entrypoint. Wraps the official mysql entrypoint so
-#       we can interpolate ${MYSQL_PASSWORD} into init.sql via
-#       envsubst before MySQL reads it. SQL files in
-#       /docker-entrypoint-initdb.d/ are passed straight to the
-#       mysql client (no shell expansion), so the wrapper is
-#       necessary.
-#     - db/init.sql → /docker-entrypoint-initdb.d/init.sql
-#       which the wrapper envsubs into the actual init script on
-#       first boot.
-#   We previously tried bind-mounting these from the host filesystem,
-#   but the bind-mount under /usr/local/bin/ triggered an
-#   "is a directory: permission denied" runc error during deploy
-#   because the source file wasn't materialized at Coolify's deploy
-#   path. Baking files into the image layers avoids that class of
-#   bug entirely.
+# About the db service init flow:
+#   We use the OFFICIAL mysql:8.0 image and bind-mount
+#   `db/init.sql` into `/docker-entrypoint-initdb.d/`. The compose
+#   `entrypoint:` is an inline `sh -c` that does a targeted
+#   `sed` substitution of ${MYSQL_PASSWORD} on the mounted init.sql
+#   BEFORE exec'ing the official entrypoint.
+#
+#   Why `sed` instead of `envsubst`:
+#     The mysql:8.0 image is based on oraclelinux:9-slim, which
+#     does NOT include envsubst / gettext-base out of the box, and
+#     apt-get isn't available (only microdnf). Installing gettext-base
+#     would require either a custom Dockerfile or a network-requiring
+#     microdnf install at build time. We avoid both by using `sed`
+#     (which the official entrypoint already uses, so it's guaranteed
+#     to exist in the image).
+#
+#   Why an inline entrypoint instead of bind-mounting a wrapper
+#   script at /usr/local/bin/:
+#     Earlier deploys that bind-mounted a wrapper script under
+#     /usr/local/bin/ triggered a runc EISDIR ("is a directory:
+#     permission denied") error on Coolify's git-clone deploy path.
+#     Inlining the wrapper logic into the compose `entrypoint:` list
+#     avoids any second bind-mount under /usr/local/bin/ — there's
+#     only one bind mount now, for init.sql.
 
 services:
   db:
-    # Build a custom image FROM mysql:8.0 that bakes in our wrapper
-    # entrypoint and init.sql. We previously tried bind-mounting
-    # these in from the host, but Coolify's git clone occasionally
-    # failed to materialize the wrapper file at the deploy path,
-    # causing runc to exec an empty directory (EISDIR) and the
-    # container to fail to start with "is a directory: permission
-    # denied". Baking the files into the image layers sidesteps
-    # the bind-mount path entirely.
-    build:
-      context: ./db
-      dockerfile: Dockerfile
-    image: nas-portfolio/db:local
+    # Use the OFFICIAL mysql:8.0 image directly (no custom build).
+    # Bind-mount db/init.sql into /docker-entrypoint-initdb.d/ so it
+    # runs on first boot. We do NOT need a custom image because:
+    #
+    #   - The official entrypoint already runs /docker-entrypoint-initdb.d/
+    #     files on first boot.
+    #   - SQL files don't get shell-expansion, so we use an inline
+    #     `sh -c` entrypoint that does a sed substitution of
+    #     ${MYSQL_PASSWORD} on init.sql BEFORE exec'ing the official
+    #     entrypoint.
+    #   - `sed` is already in the image (the official entrypoint uses
+    #     it), so we don't need to install envsubst/gettext-base.
+    #
+    # Why bind-mount instead of baking into a custom image:
+    #   The user explicitly asked for the official image. A previous
+    #   attempt that baked files into a custom image was rejected.
+    image: 'mysql:8.0'
     container_name: nas-portfolio-db
     restart: unless-stopped
     volumes:
       - 'mysql_data:/var/lib/mysql'
-    command:
-      - mysqld
+      # Bind-mount the init script. NOT marked `:ro` because the
+      # inline entrypoint rewrites it in place with the substituted
+      # password on first boot (when /var/lib/mysql is empty).
+      - './db/init.sql:/docker-entrypoint-initdb.d/init.sql'
+    # Inline entrypoint: do the sed substitution then hand off to the
+    # official mysql entrypoint. The logic that used to live in
+    # db/docker-entrypoint.sh (deleted) is inlined here so we don't
+    # need a second bind mount at /usr/local/bin/, which previously
+    # triggered a runc "is a directory" error on Coolify deploys.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        INIT_SQL="/docker-entrypoint-initdb.d/init.sql"
+        if [ -f "$$INIT_SQL" ] && [ ! -d /var/lib/mysql/mysql ]; then
+          if [ -n "$${MYSQL_PASSWORD:-}" ]; then
+            echo "[entrypoint] interpolating MYSQL_PASSWORD into $$INIT_SQL"
+            tmp="$$(mktemp)"
+            # NOTE: we use single quotes around the sed script so the
+            # LHS pattern stays the literal token $${MYSQL_PASSWORD}
+            # (which is ${MYSQL_PASSWORD} after compose interpolation,
+            # which is the literal placeholder text in init.sql). The
+            # RHS uses double quotes so the shell expands
+            # $${MYSQL_PASSWORD} to the actual password value from
+            # the env var.
+            sed 's|$${MYSQL_PASSWORD}|'"$${MYSQL_PASSWORD}"'|g' "$$INIT_SQL" > "$$tmp"
+            cat "$$tmp" > "$$INIT_SQL"
+            rm -f "$$tmp"
+          else
+            echo "[entrypoint] WARNING: MYSQL_PASSWORD not set; init.sql will not be interpolated" >&2
+          fi
+        fi
+        exec /usr/local/bin/docker-entrypoint.sh mysqld
+    command: []
     environment:
       # Pulling values directly from your Coolify Environment panel
       MYSQL_ROOT_PASSWORD: '${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in Coolify}'

@@ -17,11 +17,13 @@
 --
 -- Variable interpolation:
 -- `${MYSQL_PASSWORD}` is NOT a SQL syntax — it's a shell-style
--- placeholder that gets substituted by `envsubst` in
--- db/docker-entrypoint.sh BEFORE MySQL reads this file. SQL files
--- mounted into /docker-entrypoint-initdb.d/ are passed straight to
--- the mysql client (no env-var expansion), so the wrapper script
--- is required.
+-- placeholder that gets substituted by `sed` in the inline
+-- `entrypoint:` in docker-compose.yml BEFORE MySQL reads this file.
+-- SQL files mounted into /docker-entrypoint-initdb.d/ are passed
+-- straight to the mysql client (no env-var expansion), so the
+-- wrapper logic in the compose entrypoint is required. We use `sed`
+-- instead of `envsubst` because mysql:8.0 (oraclelinux:9-slim
+-- based) does not ship envsubst and cannot apt-get install it.
 
 -- Ensure the database exists with the right charset.
 CREATE DATABASE IF NOT EXISTS `portfolio`
