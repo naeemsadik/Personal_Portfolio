@@ -127,6 +127,13 @@ services:
     # container listens on — Coolify will then publish it on 0.0.0.0
     # (or your chosen host port) automatically.
     #
+    # IMPORTANT — choose a host port that does NOT collide with
+    # Coolify itself. Coolify's web UI listens on port 8000 by
+    # default, so set the Port Mapping in the Coolify resource UI to
+    #     8001:8000
+    # (host port 8001 → container port 8000). Any free host port
+    # works; 8001 is the conventional choice here.
+    #
     # Why not declare `ports:` directly?
     #   - Coolify's port-publishing logic runs on its own and will
     #     conflict with anything in `ports:`.
