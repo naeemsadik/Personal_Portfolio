@@ -2,8 +2,6 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
 import { ExternalLink, Github, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,13 +14,11 @@ type Props = {
 };
 
 export function ProjectsGrid({ projects, featuredOnly }: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
   const list = featuredOnly ? projects.filter((p) => p.featured) : projects;
   if (list.length === 0) return null;
 
   return (
-    <section ref={ref} id="projects" className="py-24 md:py-32">
+    <section id="projects" className="py-24 md:py-32">
       <div className="container">
         <header className="mx-auto max-w-2xl text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-accent/80">
@@ -38,19 +34,10 @@ export function ProjectsGrid({ projects, featuredOnly }: Props) {
         </header>
 
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2">
-          {list.map((p, i) => (
-            <motion.div
-              key={p.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{
-                delay: 0.05 * i,
-                duration: 0.55,
-                ease: [0.22, 1, 0.36, 1],
-              }}
-            >
+          {list.map((p) => (
+            <div key={p.id}>
               <ProjectCard project={p} />
-            </motion.div>
+            </div>
           ))}
         </div>
 

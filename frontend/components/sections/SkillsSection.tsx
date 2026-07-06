@@ -1,7 +1,5 @@
 'use client';
 
-import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import type { SettingsContent } from '@/lib/content/schema';
 
@@ -27,9 +25,6 @@ type Props = {
  * the admin filled in.
  */
 export function SkillsSection({ settings }: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
-
   const skills = settings.skills;
 
   const groups: Group[] = [
@@ -44,7 +39,7 @@ export function SkillsSection({ settings }: Props) {
   if (groups.length === 0) return null;
 
   return (
-    <section ref={ref} id="skills" className="py-24 md:py-32">
+    <section id="skills" className="py-24 md:py-32">
       <div className="container">
         <header className="mx-auto max-w-2xl text-center">
           <p className="text-xs uppercase tracking-[0.3em] text-accent/80">
@@ -60,12 +55,9 @@ export function SkillsSection({ settings }: Props) {
         </header>
 
         <div className="mt-16 grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-          {groups.map((g, gi) => (
-            <motion.div
+          {groups.map((g) => (
+            <div
               key={g.key}
-              initial={{ opacity: 0, y: 16 }}
-              animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ delay: 0.05 * gi, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               className="rounded-xl border border-border/60 bg-card/40 p-6"
             >
               <div className="flex items-baseline justify-between gap-2">
@@ -88,7 +80,7 @@ export function SkillsSection({ settings }: Props) {
                   </li>
                 ))}
               </ul>
-            </motion.div>
+            </div>
           ))}
         </div>
       </div>

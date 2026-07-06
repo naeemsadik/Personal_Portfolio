@@ -1,7 +1,5 @@
 'use client';
 
-import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
 import { Award, Briefcase, GraduationCap, HeartHandshake, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,14 +23,10 @@ type Props = {
 };
 
 export function ExperienceTimeline({ entries, compact }: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const inView = useInView(ref, { once: true, margin: '-80px' });
-
   if (entries.length === 0) return null;
 
   return (
     <section
-      ref={ref}
       id="experience"
       className="relative py-24 md:py-32"
     >
@@ -61,15 +55,8 @@ export function ExperienceTimeline({ entries, compact }: Props) {
             const { Icon, label } = kindMeta[entry.kind];
             const side = i % 2 === 0 ? 'left' : 'right';
             return (
-              <motion.li
+              <li
                 key={entry.id}
-                initial={{ opacity: 0, y: 24 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{
-                  delay: 0.05 * i,
-                  duration: 0.55,
-                  ease: [0.22, 1, 0.36, 1],
-                }}
                 className={
                   'relative mb-10 md:grid md:grid-cols-2 md:items-center md:gap-12 ' +
                   (compact && i > 1 ? 'md:mb-8' : '')
@@ -147,7 +134,7 @@ export function ExperienceTimeline({ entries, compact }: Props) {
                     </CardContent>
                   </Card>
                 </div>
-              </motion.li>
+              </li>
             );
           })}
         </ol>

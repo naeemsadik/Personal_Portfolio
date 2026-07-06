@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { FileDown, Send, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -91,13 +90,7 @@ export function ContactSection({ cvUrl }: Props) {
             </div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '-80px' }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="lg:col-span-8"
-          >
+          <div className="lg:col-span-8">
             <Card className="border-border/60 bg-card/60 backdrop-blur-sm">
               <CardContent className="p-6 md:p-8">
                 <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -148,7 +141,7 @@ export function ContactSection({ cvUrl }: Props) {
                 </form>
               </CardContent>
             </Card>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>

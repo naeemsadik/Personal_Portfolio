@@ -55,7 +55,7 @@ services:
       JWT_ALGORITHM: HS256
       JWT_EXPIRE_MIN: '200'
       ADMIN_BOOTSTRAP_EMAIL: 'naeemabdullahsadik@gmail.com'
-      ADMIN_BOOTSTRAP_PASSWORD: 'Nsadik#115'
+      ADMIN_BOOTSTRAP_PASSWORD: '512131'
 
       CORS_ORIGINS: 'https://naeem.uiucomputerclub.com'
       PUBLIC_API_URL: 'https://portfolioapi.uiucomputerclub.com'
