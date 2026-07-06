@@ -8,10 +8,10 @@ services:
     volumes:
       - 'mysql_data:/var/lib/mysql'
     environment:
-      MYSQL_ROOT_PASSWORD: '${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in Coolify}'
-      MYSQL_DATABASE: '${MYSQL_DATABASE:-portfolio}'
-      MYSQL_USER: '${MYSQL_USER:-portfolio}'
-      MYSQL_PASSWORD: '${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}'
+      MYSQL_ROOT_PASSWORD: 'Nsadik115222'
+      MYSQL_DATABASE: 'default'
+      MYSQL_USER: 'naeem'
+      MYSQL_PASSWORD: 'Nsadik115222'
     healthcheck:
       test:
         - CMD
@@ -21,7 +21,7 @@ services:
         - 127.0.0.1
         - '-u'
         - root
-        - '-p${MYSQL_ROOT_PASSWORD}'
+        - '-pNsadik115222'
       interval: 10s
       timeout: 5s
       retries: 10
@@ -37,29 +37,43 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: 'mysql+pymysql://${MYSQL_USER:-portfolio}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}@db:3306/${MYSQL_DATABASE:-portfolio}'
-      MYSQL_USER: '${MYSQL_USER:-portfolio}'
-      MYSQL_PASSWORD: '${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}'
-      MYSQL_DATABASE: '${MYSQL_DATABASE:-portfolio}'
+      DATABASE_URL: 'mysql+pymysql://naeem:Nsadik115222@db:3306/default'
+      SQLALCHEMY_DATABASE_URI: 'mysql+pymysql://naeem:Nsadik115222@db:3306/default'
+      MYSQL_USER: 'naeem'
+      MYSQL_PASSWORD: 'Nsadik115222'
+      MYSQL_DATABASE: 'default'
+      MYSQL_HOST: 'db'
+      MYSQL_SERVER: 'db'
+      DB_HOST: 'db'
+      DATABASE_HOST: 'db'
+      DB_SERVER: 'db'
+      DATABASE_SERVER: 'db'
+      MYSQL_DB_HOST: 'db'
+      SQL_SERVER: 'db'
 
-      JWT_SECRET: '${JWT_SECRET:?set JWT_SECRET in Coolify}'
+      JWT_SECRET: 'somethingrandom'
       JWT_ALGORITHM: HS256
-      JWT_EXPIRE_MIN: '${JWT_EXPIRE_MIN:-60}'
-      ADMIN_BOOTSTRAP_EMAIL: '${ADMIN_BOOTSTRAP_EMAIL}'
-      ADMIN_BOOTSTRAP_PASSWORD: '${ADMIN_BOOTSTRAP_PASSWORD}'
+      JWT_EXPIRE_MIN: '200'
+      ADMIN_BOOTSTRAP_EMAIL: 'naeemabdullahsadik@gmail.com'
+      ADMIN_BOOTSTRAP_PASSWORD: 'Nsadik#115'
 
-      CORS_ORIGINS: '${CORS_ORIGINS}'
-      PUBLIC_API_URL: '${PUBLIC_API_URL}'
-      NEXT_PUBLIC_SITE_URL: '${NEXT_PUBLIC_SITE_URL}'
+      CORS_ORIGINS: 'https://naeem.uiucomputerclub.com'
+      PUBLIC_API_URL: 'https://portfolioapi.uiucomputerclub.com'
+      NEXT_PUBLIC_SITE_URL: 'https://naeem.uiucomputerclub.com'
+      NEXT_PUBLIC_API_URL: 'https://portfolioapi.uiucomputerclub.com'
+      API_INTERNAL_URL: 'http://backend:8000'
+      SERVICE_FQDN_BACKEND: 'portfolioapi.uiucomputerclub.com'
+      SERVICE_URL_BACKEND: 'https://portfolioapi.uiucomputerclub.com'
+      SERVICE_FQDN_FRONTEND: 'naeem.uiucomputerclub.com'
+      SERVICE_URL_FRONTEND: 'https://naeem.uiucomputerclub.com'
 
       UPLOAD_DIR: /data/uploads
       SNAPSHOTS_DIR: /data/snapshots
+      MAX_UPLOAD_MB: '8'
+      MAX_CV_UPLOAD_MB: '10'
 
-      MAX_UPLOAD_MB: '${MAX_UPLOAD_MB:-8}'
-      MAX_CV_UPLOAD_MB: '${MAX_CV_UPLOAD_MB:-10}'
-
-      RESEND_API_KEY: '${RESEND_API_KEY:-}'
-      CONTACT_NOTIFY_TO: '${CONTACT_NOTIFY_TO:-}'
+      RESEND_API_KEY: ''
+      CONTACT_NOTIFY_TO: ''
     volumes:
       - 'uploads_data:/data/uploads'
       - 'snapshots_data:/data/snapshots'
