@@ -9,7 +9,6 @@ dependencies = [
   "sqlalchemy>=2.0.30",
   "pymysql>=1.1.0",
   "cryptography>=43.0.0",         # required by PyMySQL for sha256_password / caching_sha2_password
-  "alembic>=1.13.0",
   "pydantic>=2.8.0",
   "pydantic-settings>=2.4.0",
   "python-jose[cryptography]>=3.3.0",

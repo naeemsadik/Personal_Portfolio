@@ -71,11 +71,10 @@ By default the backend uses a local SQLite file at `backend/.data/portfolio.db` 
 DATABASE_URL=mysql+pymysql://USER:PASSWORD@HOST:3306/portfolio
 ```
 
-Then run migrations + seed:
+The schema is bootstrapped by `Base.metadata.create_all` (called from `app.prestart` on every container start, plus the uvicorn startup hook as a safety net). Alembic migrations are not used — the SQLAlchemy models are the single source of truth. Then run the seed:
 
 ```bash
 cd backend
-alembic upgrade head        # creates the schema in MySQL
 python -m app.seed          # loads admin user + initial content
 ```
 
@@ -113,4 +112,4 @@ Edit the JSON files in `backend/seed-data/` and re-run `python -m app.seed` to r
 ## Deployment (overview)
 
 - **Frontend → Vercel**: import the repo, set the project root to `frontend/`, set the env vars from `frontend/.env.example`. Vercel will detect Next.js automatically.
-- **Backend → any host with MySQL + a persistent disk** (Railway, Fly.io, a small VPS): `pip install -e .`, run `alembic upgrade head && python -m app.seed`, then `uvicorn app.main:app --host 0.0.0.0 --port 8000`. Mount the `backend/uploads` directory to a persistent volume so image uploads survive restarts.
+- **Backend → any host with MySQL + a persistent disk** (Railway, Fly.io, a small VPS, Coolify): `pip install -e .`, run `python -m app.prestart && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080`. The prestart step runs `Base.metadata.create_all` to bootstrap the schema (idempotent). Mount the `backend/uploads` directory to a persistent volume so image uploads survive restarts.

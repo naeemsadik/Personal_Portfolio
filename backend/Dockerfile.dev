@@ -12,10 +12,10 @@ COPY pyproject.toml ./
 RUN pip install --upgrade pip && pip install -e ".[dev]"
 
 COPY app ./app
-COPY alembic ./alembic
-COPY alembic.ini ./
 COPY seed-data ./seed-data
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Run prestart (create_all) before uvicorn so the SQLite schema is
+# ready on first boot. Mirror the production CMD chain.
+CMD ["sh", "-c", "python -m app.prestart && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]

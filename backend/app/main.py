@@ -67,10 +67,9 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def _create_missing_tables() -> None:
-        """Best-effort create-all so a fresh DB has its tables without a
-        manual `alembic upgrade head`. Alembic remains the source of truth;
-        this is just a safety net for the common case where the user pulls
-        and runs `uvicorn app.main:app` without first running migrations."""
+        """Best-effort create-all so a fresh DB has its tables even if
+        `app.prestart` wasn't run first. The SQLAlchemy models are the
+        single source of truth for the schema."""
         Base.metadata.create_all(bind=engine)
         # Ensure the snapshot storage directory exists.
         settings.snapshots_dir.mkdir(parents=True, exist_ok=True)

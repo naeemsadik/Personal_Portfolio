@@ -55,7 +55,8 @@ name: nas-portfolio-backend
 #      "Domains" section of the resource), or use the in-compose
 #      `ports:` mapping (currently bound to 127.0.0.1:8000).
 #
-#   5. First boot: the backend container runs `alembic upgrade head`
+#   5. First boot: the backend container runs `python -m app.prestart`
+#      (which calls `Base.metadata.create_all` to bootstrap the schema)
 #      then `python -m app.seed` which creates the admin user + initial
 #      content. After that, log into /admin/login (on the frontend) and
 #      change the password.

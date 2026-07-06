@@ -1,19 +1,13 @@
 """One-shot container startup tasks.
 
-Runs BEFORE alembic on a fresh database so that:
-  1. Base.metadata.create_all() creates all base tables (analytics_events,
-     experience, projects, etc.)
-  2. Then alembic upgrade head applies the additive column changes that
-     create_all doesn't (e.g. user_agent, referrer, session_id columns
-     on analytics_events; status column on experience/projects).
+Runs BEFORE uvicorn on a fresh database so that:
+  1. Base.metadata.create_all() creates all tables (analytics_events,
+     experience, projects, site_settings, site_snapshots, etc.) using
+     the SQLAlchemy model definitions as the single source of truth.
 
-Without this, the first migration (`918698828ab8`) tries to
-ALTER TABLE analytics_events on a database where the table doesn't
-yet exist, and the container fails to start.
-
-Also runs after migrations + seed to ensure the analytics row that
-the seed step inserts doesn't get clobbered by a duplicate-key
-error on subsequent boots.
+This script is idempotent — running create_all on a database that
+already has the tables is a no-op. Safe to run on every container
+boot.
 """
 from __future__ import annotations
 

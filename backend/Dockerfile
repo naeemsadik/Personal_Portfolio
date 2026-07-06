@@ -35,14 +35,12 @@ RUN useradd --create-home --uid 10001 --shell /bin/bash app
 
 WORKDIR /app
 
-# Copy installed site-packages + the project from the builder.
+# Copy installed site-packages + project source from the builder.
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy the source. Seed data is read at runtime from /app/seed-data.
 COPY --chown=app:app app ./app
-COPY --chown=app:app alembic ./alembic
-COPY --chown=app:app alembic.ini ./
 COPY --chown=app:app seed-data ./seed-data
 COPY --chown=app:app pyproject.toml ./
 
@@ -56,22 +54,21 @@ EXPOSE 8080
 # Startup sequence on every container boot:
 #
 #   1. `python -m app.prestart` runs `Base.metadata.create_all` to
-#      bootstrap all base tables on a fresh DB. The first alembic
-#      migration (`918698828ab8`) tries to ALTER TABLE
-#      analytics_events — which fails if the table doesn't exist
-#      yet, so we have to create it first.
+#      bootstrap all tables on a fresh DB. This is the single source
+#      of truth for the schema — the SQLAlchemy models declare every
+#      column, default, index, etc. No alembic migrations are needed
+#      (they were removed because every migration was duplicating
+#      work `create_all` already does, causing "duplicate column"
+#      errors on a fresh DB).
 #
-#   2. `alembic upgrade head` applies the additive schema changes
-#      (new columns + indexes) on top of the base tables.
-#
-#   3. `python -m app.seed` is idempotent: it upserts the admin user
+#   2. `python -m app.seed` is idempotent: it upserts the admin user
 #      (refreshing the password from ADMIN_BOOTSTRAP_PASSWORD on
 #      every boot) and writes the initial content if missing.
 #
-#   4. `uvicorn app.main:app` starts the API server. The startup
-#      hook in app/main.py also runs create_all, which is harmless
+#   3. `uvicorn app.main:app` starts the API server. The startup
+#      hook in app/main.py runs create_all again, which is harmless
 #      (it only creates tables that don't exist).
 #
 # Single-line CMD so Coolify's ARG injection doesn't break the
 # shell pipeline (it breaks bash `\\\n` line-continuations).
-CMD ["sh", "-c", "python -m app.prestart && alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080"]
+CMD ["sh", "-c", "python -m app.prestart && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8080"]
