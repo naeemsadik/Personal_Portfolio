@@ -1,0 +1,179 @@
+name: nas-portfolio
+
+# Docker Compose for self-hosting on Coolify.
+#
+# Services:
+#   - frontend (Next.js, port 3000)
+#   - backend  (FastAPI + uvicorn, port 8000)
+#   - db       (MySQL 8, internal only — not exposed to the host)
+#
+# Persistent data:
+#   - mysql_data  : MySQL datadir (survives restarts + redeploys)
+#   - uploads_data: backend/file uploads served at /media/*
+#
+# How to deploy on Coolify:
+#   1. Push the repo to GitHub/GitLab.
+#   2. In Coolify: "+ New Resource" → "Docker Compose" → point at this repo.
+#      Coolify will detect `docker-compose.yml` automatically.
+#   3. Set the following environment variables in the Coolify service
+#      (these get injected into the containers at runtime — never commit
+#      real secrets):
+#
+#        MYSQL_ROOT_PASSWORD      (strong random)
+#        MYSQL_DATABASE           = portfolio
+#        MYSQL_USER               = portfolio
+#        MYSQL_PASSWORD           (strong random)
+#
+#        DATABASE_URL             = mysql+pymysql://portfolio:${MYSQL_PASSWORD}@db:3306/portfolio
+#        JWT_SECRET               (secrets.token_urlsafe(48))
+#        JWT_EXPIRE_MIN           = 60
+#        ADMIN_BOOTSTRAP_EMAIL    = [email protected]
+#        ADMIN_BOOTSTRAP_PASSWORD (strong random — change after first login)
+#        CORS_ORIGINS             = https://your-public-frontend-host
+#        PUBLIC_API_URL           = https://api.your-public-backend-host
+#        NEXT_PUBLIC_SITE_URL     = https://your-public-frontend-host
+#        NEXT_PUBLIC_API_URL      = https://api.your-public-backend-host
+#        API_INTERNAL_URL         = http://backend:8000
+#        UPLOAD_DIR               = /data/uploads
+#        MAX_UPLOAD_MB            = 8
+#        MAX_CV_UPLOAD_MB         = 10
+#        RESEND_API_KEY           (optional)
+#        CONTACT_NOTIFY_TO        (optional)
+#
+#   4. Expose ports 3000 (frontend) and 8000 (backend) in Coolify, or put
+#      them behind your preferred reverse-proxy / wildcard certificate.
+#      Coolify's built-in Traefik will pick them up if you set the right
+#      `ports` / `labels` — see the coolify-specific section at the bottom.
+#
+#   5. First boot: the backend container runs `python -m app.seed` which
+#      creates the admin user + initial content. After that, log into
+#      `/admin/login` and change the password.
+#
+# Notes:
+#   - The `db` service has NO host port mapping (`ports:` omitted on
+#     purpose) so MySQL is reachable only from `backend` over the
+#     compose-internal network. If you want to inspect it from outside
+#     temporarily, add `"3306:3306"` and remove it after.
+#   - `API_INTERNAL_URL=http://backend:8000` is what Next.js uses for
+#     server-side fetches; `NEXT_PUBLIC_API_URL` is what the browser uses
+#     (must be the public URL).
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: nas-portfolio-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in Coolify}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-portfolio}
+      MYSQL_USER: ${MYSQL_USER:-portfolio}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      # mysqladmin ping returns 0 only when the server is accepting
+      # connections — gates the backend start until DB is really ready.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    # No `ports:` block — DB stays internal to the compose network.
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nas-portfolio-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://portfolio:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-portfolio}}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MIN: ${JWT_EXPIRE_MIN:-60}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      PUBLIC_API_URL: ${PUBLIC_API_URL}
+      UPLOAD_DIR: /data/uploads
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-8}
+      MAX_CV_UPLOAD_MB: ${MAX_CV_UPLOAD_MB:-10}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      CONTACT_NOTIFY_TO: ${CONTACT_NOTIFY_TO:-}
+    volumes:
+      - uploads_data:/data/uploads
+    ports:
+      # 127.0.0.1:8000 keeps it unexposed to the LAN; remove the
+      # 127.0.0.1 prefix if you want it on 0.0.0.0. Coolify will
+      # typically override `ports:` via its own port UI.
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Build-time public values (baked into the JS bundle).
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
+    container_name: nas-portfolio-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Runtime values available to server-side code (not inlined into
+      # the client bundle). `hostname`/`internal` URLs are what Next.js
+      # uses for SSR fetches.
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      API_INTERNAL_URL: ${API_INTERNAL_URL:-http://backend:8000}
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: "0.0.0.0"
+    ports:
+      - "127.0.0.1:3000:3000"
+
+volumes:
+  mysql_data:
+    # Survives `docker compose down` (no `--remove-orphans` data wipe).
+    # `docker compose down -v` removes it — use only for a true reset.
+    name: nas-portfolio-mysql
+  uploads_data:
+    # Persists user-uploaded media across redeploys; mounted at /data/uploads
+    # in the backend container (UPLOAD_DIR above).
+    name: nas-portfolio-uploads
+
+# ---------------------------------------------------------------------------
+# Optional: Coolify / Traefik labels.
+# Uncomment and edit the hostnames below if you want Coolify's built-in
+# Traefik to terminate TLS for you. Otherwise, leave as-is and configure
+# proxying in the Coolify UI under "Ports" / "Domains".
+# ---------------------------------------------------------------------------
+# x-common-labels: &common-labels
+#   coolify.project: nas-portfolio
+#
+#  backend:
+#    labels:
+#      <<: *common-labels
+#      traefik.http.routers.nas-backend.rule: Host(`api.your-domain.tld`)
+#      traefik.http.routers.nas-backend.tls.certresolver: letsencrypt
+#      traefik.http.services.nas-backend.loadbalancer.server.port: 8000
+#
+#  frontend:
+#    labels:
+#      <<: *common-labels
+#      traefik.http.routers.nas-frontend.rule: Host(`your-domain.tld`)
+#      traefik.http.routers.nas-frontend.tls.certresolver: letsencrypt
+#      traefik.http.services.nas-frontend.loadbalancer.server.port: 3000

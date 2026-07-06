@@ -1,0 +1,25 @@
+# Don't ship dev artifacts into the image.
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# Local config & data
+.env
+.data/
+
+# Uploads are mounted as a volume, not baked in.
+uploads/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

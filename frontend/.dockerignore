@@ -1,0 +1,22 @@
+node_modules/
+.next/
+.turbo/
+.out/
+
+# Local env files (real values come from Coolify at runtime).
+.env
+.env.local
+.env.*.local
+
+# Build artifacts
+*.tsbuildinfo
+bake.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
