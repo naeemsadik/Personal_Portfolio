@@ -105,7 +105,12 @@ services:
         condition: service_healthy
     environment:
       # --- Database ---
-      DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://portfolio:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-portfolio}}
+      # Built from MYSQL_USER / MYSQL_PASSWORD / MYSQL_DATABASE so it
+      # stays in sync with the `db` service above. If you override
+      # DATABASE_URL, you must keep the credentials matching what the
+      # MySQL service was initialized with — otherwise you get
+      # 'Access denied for user ...' on every connection.
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-portfolio}:${MYSQL_PASSWORD:?set MYSQL_PASSWORD in Coolify}@db:3306/${MYSQL_DATABASE:-portfolio}
 
       # --- Backend auth ---
       JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in Coolify}
