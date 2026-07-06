@@ -1,3 +1,10 @@
+# Don't ship dev / build artifacts into the image. BuildKit reads
+# this file at the start of every `docker build` and silently skips
+# matching paths. Without it, `COPY . .` would copy `node_modules/`
+# (huge, platform-specific binaries) and `.next/` (huge build output)
+# from the host machine into the image, doubling the context size and
+# frequently breaking the install.
+
 node_modules/
 .next/
 .turbo/
@@ -8,15 +15,15 @@ node_modules/
 .env.local
 .env.*.local
 
-# Build artifacts
+# TypeScript build info (can be megabytes).
 *.tsbuildinfo
-bake.log
 
-# Editor / OS
+# Test / script logs.
+bake.log
+*.log
+
+# Editor / OS junk.
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
-
-# Logs
-*.log
