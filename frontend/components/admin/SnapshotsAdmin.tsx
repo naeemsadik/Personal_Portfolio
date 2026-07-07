@@ -86,14 +86,23 @@ function formatBytes(n: number): string {
 
 function formatDate(s: string | null | undefined): string {
   if (!s) return '—';
-  const d = new Date(s);
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(s);
+  const d = new Date(hasTimezone ? s : `${s}Z`);
   if (isNaN(d.getTime())) return '—';
-  return d.toLocaleString();
+  return new Intl.DateTimeFormat('en-BD', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Dhaka',
+  }).format(d);
 }
 
 function durationSec(start: string | null, end: string | null): number | null {
   if (!start || !end) return null;
-  return Math.max(0, (new Date(end).getTime() - new Date(start).getTime()) / 1000);
+  const startHasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(start);
+  const endHasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(end);
+  const startDate = new Date(startHasTimezone ? start : `${start}Z`);
+  const endDate = new Date(endHasTimezone ? end : `${end}Z`);
+  return Math.max(0, (endDate.getTime() - startDate.getTime()) / 1000);
 }
 
 function statusBadge(status: SnapshotStatus) {
@@ -645,7 +654,7 @@ export function SnapshotsAdmin() {
                       Size
                     </TableHead>
                     <TableHead className="hidden lg:table-cell">
-                      Created
+                      Created (BDT)
                     </TableHead>
                     <TableHead className="w-40 text-right">Actions</TableHead>
                   </TableRow>

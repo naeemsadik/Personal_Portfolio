@@ -33,11 +33,12 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.models import SiteSnapshotRow
+from app.models import BlogPostRow, SiteSnapshotRow
 
 # ---- Version slug ---------------------------------------------------------
 
@@ -150,6 +151,34 @@ def _dir_size_bytes(root: Path) -> int:
 # ---- Public route shape ---------------------------------------------------
 
 type PublicRoute = dict[str, Any]
+
+
+def _build_public_routes(db: Session) -> list[PublicRoute]:
+    """Return the canonical public routes the crawler should bake."""
+    routes: list[PublicRoute] = [
+        {"path": "/"},
+        {"path": "/experience"},
+        {"path": "/projects"},
+        {"path": "/blog"},
+        {"path": "/contact"},
+    ]
+
+    posts = (
+        db.query(BlogPostRow)
+        .filter(BlogPostRow.status == "published")
+        .order_by(desc(BlogPostRow.published_at), BlogPostRow.ord.asc())
+        .all()
+    )
+    routes.extend(
+        {
+            "path": f"/blog/{post.slug}",
+            "lastModified": (
+                post.updated_at.isoformat() if post.updated_at else None
+            ),
+        }
+        for post in posts
+    )
+    return routes
 
 
 async def _fetch_public_routes(
@@ -272,11 +301,10 @@ async def generate_snapshot(
 
         # Step 1 — fetch routes.
         try:
-            async with httpx.AsyncClient() as client:
-                routes = await _fetch_public_routes(client, base_url, admin_jwt)
+            routes = _build_public_routes(db)
         except Exception as e:
             snap.status = "failed"
-            snap.error_message = f"failed to fetch route list: {e}"
+            snap.error_message = f"failed to build route list: {e}"
             snap.finished_at = datetime.now()
             db.commit()
             return
