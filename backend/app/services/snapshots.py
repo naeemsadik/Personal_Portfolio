@@ -261,7 +261,14 @@ async def generate_snapshot(
         # Use the version as the on-disk subdir name.
         version = snap.version
         _validate_version(version)
-        root = snapshot_root(version)
+        try:
+            root = snapshot_root(version)
+        except Exception as e:
+            snap.status = "failed"
+            snap.error_message = f"failed to prepare snapshot directory: {e}"
+            snap.finished_at = datetime.now()
+            db.commit()
+            return
 
         # Step 1 — fetch routes.
         try:

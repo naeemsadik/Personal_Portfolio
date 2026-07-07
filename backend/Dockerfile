@@ -45,7 +45,7 @@ COPY --chown=app:app seed-data ./seed-data
 COPY --chown=app:app pyproject.toml ./
 
 # Persistent volume target — uploads land here and survive container restarts.
-RUN mkdir -p /data/uploads && chown -R app:app /data
+RUN mkdir -p /data/uploads /data/snapshots && chown -R app:app /data
 
 USER app
 
