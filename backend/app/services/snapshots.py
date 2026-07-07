@@ -135,6 +135,47 @@ def _rewrite_media_urls(html: str, api_origin: str) -> str:
     return html
 
 
+_RE_SCRIPT_TAG = re.compile(
+    r"<script\b(?P<attrs>[^>]*)>.*?</script>",
+    re.IGNORECASE | re.DOTALL,
+)
+_RE_SCRIPT_PRELOAD = re.compile(
+    r"""<link\b(?=[^>]*\brel=["']preload["'])(?=[^>]*\bas=["']script["'])[^>]*>""",
+    re.IGNORECASE,
+)
+
+
+def _rewrite_local_media_to_backend(
+    html: str,
+    media_base_url: str,
+) -> str:
+    base = media_base_url.rstrip("/")
+    return html.replace("/_media/", f"{base}/")
+
+
+def _strip_runtime_scripts(html: str) -> str:
+    """Remove hydration scripts so snapshots stay static after load."""
+
+    def _replace_script(m: re.Match[str]) -> str:
+        attrs = m.group("attrs").lower()
+        if "application/ld+json" in attrs:
+            return m.group(0)
+        return ""
+
+    html = _RE_SCRIPT_PRELOAD.sub("", html)
+    return _RE_SCRIPT_TAG.sub(_replace_script, html)
+
+
+def _prepare_static_snapshot_html(
+    html: str,
+    api_origin: str,
+    media_base_url: str,
+) -> str:
+    html = _rewrite_media_urls(html, api_origin)
+    html = _rewrite_local_media_to_backend(html, media_base_url)
+    return _strip_runtime_scripts(html)
+
+
 # ---- File size helpers ----------------------------------------------------
 
 
@@ -366,8 +407,15 @@ async def generate_snapshot(
                         snap.warnings_json = warnings
                         db.commit()
                         continue
-                    # Final body rewrite — media URLs → local paths.
-                    body = _rewrite_media_urls(res.text, api_origin)
+                    media_base_url = (
+                        f"{api_origin.rstrip('/')}/__snapshots__/"
+                        f"{version}/_media"
+                    )
+                    body = _prepare_static_snapshot_html(
+                        res.text,
+                        api_origin,
+                        media_base_url,
+                    )
                     out_path = url_to_snapshot_path(root, url_path)
                     out_path.parent.mkdir(parents=True, exist_ok=True)
                     out_path.write_text(body, encoding="utf-8")

@@ -110,6 +110,15 @@ def create_app() -> FastAPI:
         name="media",
     )
 
+    # Serve generated snapshots from the persistent snapshot volume. This lets
+    # a hosted frontend (for example Vercel) proxy static snapshot HTML/assets
+    # from the backend instead of needing the files in its own deployment.
+    app.mount(
+        "/__snapshots__",
+        StaticFiles(directory=str(settings.snapshots_dir), check_dir=False),
+        name="snapshots",
+    )
+
     # Routers
     app.include_router(health.router)
     app.include_router(auth.router)

@@ -33,6 +33,53 @@ function snapshotPath(version: string, pathname: string): string {
   return `/__snapshots__/${version}${trimmed}/index.html`;
 }
 
+function snapshotAssetBaseUrl(): string | null {
+  return (
+    process.env.SNAPSHOT_ASSET_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    null
+  );
+}
+
+async function serveSnapshotPage(
+  req: NextRequest,
+  version: string,
+  pathname: string,
+  headerName: 'X-Snapshot-Preview' | 'X-Snapshot-Live',
+): Promise<NextResponse> {
+  const assetBaseUrl = snapshotAssetBaseUrl();
+  if (!assetBaseUrl) {
+    const res = NextResponse.rewrite(
+      new URL(snapshotPath(version, pathname), req.url),
+    );
+    res.headers.set(headerName, version);
+    return res;
+  }
+
+  const target = `${assetBaseUrl.replace(/\/+$/, '')}${snapshotPath(
+    version,
+    pathname,
+  )}`;
+  const upstream = await fetch(target, {
+    headers: { Accept: 'text/html' },
+    cache: 'no-store',
+  });
+
+  if (!upstream.ok) {
+    return NextResponse.next();
+  }
+
+  const html = await upstream.text();
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'public, max-age=60, s-maxage=60',
+      [headerName]: version,
+    },
+  });
+}
+
 async function fetchSiteState(req: NextRequest): Promise<SiteState | null> {
   try {
     const res = await fetch(new URL('/api/site-state', req.url), {
@@ -64,10 +111,12 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const previewParam = searchParams.get('snapshot');
 
     if (previewParam && VERSION_RE.test(previewParam)) {
-      const res = NextResponse.rewrite(
-        new URL(snapshotPath(previewParam, pathname), req.url),
+      const res = await serveSnapshotPage(
+        req,
+        previewParam,
+        pathname,
+        'X-Snapshot-Preview',
       );
-      res.headers.set('X-Snapshot-Preview', previewParam);
       res.cookies.set('nas_snapshot_preview', previewParam, {
         httpOnly: false,
         sameSite: 'lax',
@@ -86,11 +135,12 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       if (!VERSION_RE.test(state.publishedVersion)) {
         return NextResponse.next();
       }
-      const res = NextResponse.rewrite(
-        new URL(snapshotPath(state.publishedVersion, pathname), req.url),
+      return serveSnapshotPage(
+        req,
+        state.publishedVersion,
+        pathname,
+        'X-Snapshot-Live',
       );
-      res.headers.set('X-Snapshot-Live', state.publishedVersion);
-      return res;
     }
 
     return NextResponse.next();
